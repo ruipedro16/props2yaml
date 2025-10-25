@@ -40,7 +40,7 @@ fn insert_nested(root: &mut serde_yaml::Mapping, key: &str, value: &str) {
 }
 
 #[allow(dead_code)]
-fn write(map: &HashMap<String, String>) -> String {
+pub(crate) fn write(map: &HashMap<String, String>) -> String {
     let mut root = serde_yaml::Mapping::new();
 
     for (key, value) in map {
@@ -49,7 +49,7 @@ fn write(map: &HashMap<String, String>) -> String {
 
     let yaml_value = serde_yaml::Value::Mapping(root);
 
-    // TODO: FIMXE: Proper error handling
+    // TODO: FIXME: Proper error handling
     serde_yaml::to_string(&yaml_value).unwrap()
 }
 
@@ -68,30 +68,38 @@ fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut HashMap<Str
                 }
             }
         }
+
         serde_yaml::Value::Sequence(seq) => {
             for (i, item) in seq.iter().enumerate() {
                 let new_prefix = format!("{}[{}]", prefix, i);
                 flatten_yaml(item, new_prefix, map);
             }
         }
+
         serde_yaml::Value::String(s) => {
             map.insert(prefix, s.clone());
         }
+
         serde_yaml::Value::Number(n) => {
             map.insert(prefix, n.to_string());
         }
+
         serde_yaml::Value::Bool(b) => {
             map.insert(prefix, b.to_string());
         }
+
         serde_yaml::Value::Null => {
             map.insert(prefix, String::new());
         }
-        _ => {}
+
+        _ => {
+            panic!("should not happen");
+        }
     }
 }
 
 #[allow(dead_code)]
-fn parse(content: &str) -> HashMap<String, String> {
+pub(crate) fn parse(content: &str) -> HashMap<String, String> {
     let value: serde_yaml::Value = serde_yaml::from_str(content).expect("failed to parse yaml");
     let mut map = HashMap::new();
 
