@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-#[allow(dead_code)]
 fn insert_nested(root: &mut serde_yaml::Mapping, key: &str, value: &str) {
     let parts: Vec<&str> = key.split('.').collect();
 
@@ -39,7 +38,6 @@ fn insert_nested(root: &mut serde_yaml::Mapping, key: &str, value: &str) {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn write(map: &HashMap<String, String>) -> String {
     let mut root = serde_yaml::Mapping::new();
 
@@ -53,7 +51,6 @@ pub(crate) fn write(map: &HashMap<String, String>) -> String {
     serde_yaml::to_string(&yaml_value).unwrap()
 }
 
-#[allow(dead_code)]
 fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut HashMap<String, String>) {
     match value {
         serde_yaml::Value::Mapping(m) => {
@@ -98,7 +95,6 @@ fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut HashMap<Str
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn parse(content: &str) -> HashMap<String, String> {
     let value: serde_yaml::Value = serde_yaml::from_str(content).expect("failed to parse yaml");
     let mut map = HashMap::new();

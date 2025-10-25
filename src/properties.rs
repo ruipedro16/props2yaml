@@ -26,10 +26,9 @@ pub fn write(map: &HashMap<String, String>) -> String {
 
 fn unescape_value(s: &str) -> String {
     let mut result = String::new();
-    let mut chars = s.chars();
     let mut escaped = false;
 
-    while let Some(ch) = chars.next() {
+    for ch in s.chars() {
         if escaped {
             match ch {
                 'n' => result.push('\n'),
@@ -74,7 +73,7 @@ fn parse_property_line(line: &str) -> Option<(String, String)> {
             // Skip any additional whitespace or separators
             while chars
                 .peek()
-                .map_or(false, |c| c.is_whitespace() || *c == '=' || *c == ':')
+                .is_some_and(|c| c.is_whitespace() || *c == '=' || *c == ':')
             {
                 chars.next();
             }
@@ -97,7 +96,7 @@ fn parse_property_line(line: &str) -> Option<(String, String)> {
 pub fn parse(content: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
 
-    for (_, line) in content.lines().enumerate() {
+    for line in content.lines() {
         let trimmed = line.trim();
 
         // Skip empty lines and comments
