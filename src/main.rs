@@ -33,6 +33,14 @@ struct Cli {
     /// Enable verbose output
     #[arg(short, long)]
     verbose: bool,
+
+    /// Skip YAML formatting with yamlfmt
+    #[arg(long)]
+    skip_format: bool,
+
+    /// Path to yamlfmt binary (optional, searches PATH if not provided)
+    #[arg(long, value_name = "PATH")]
+    yamlfmt_path: Option<PathBuf>,
 }
 
 fn main() {
@@ -104,7 +112,14 @@ fn main() {
         println!("Converting...");
     }
 
-    let output_content = converter::convert(&input_content, from_format, to_format);
+    let output_content = converter::convert(
+        &input_content,
+        from_format,
+        to_format,
+        cli.skip_format,
+        cli.verbose,
+        cli.yamlfmt_path.as_ref(),
+    );
 
     if cli.verbose {
         println!(

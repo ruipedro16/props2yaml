@@ -1,5 +1,6 @@
 use crate::errors::Prop2YamlError;
 use crate::{properties, yaml};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Format {
@@ -30,7 +31,14 @@ impl Format {
 }
 
 // TODO: This should return a Result
-pub fn convert(input: &str, from: Format, to: Format) -> String {
+pub fn convert(
+    input: &str,
+    from: Format,
+    to: Format,
+    skip_format: bool,
+    verbose: bool,
+    yamlfmt_path: Option<&PathBuf>,
+) -> String {
     let map = match from {
         Format::Properties => properties::parse(input),
         Format::Yaml => yaml::parse(input),
@@ -38,14 +46,8 @@ pub fn convert(input: &str, from: Format, to: Format) -> String {
 
     match to {
         Format::Properties => properties::write(&map),
-        Format::Yaml => yaml::write(&map),
+        Format::Yaml => yaml::write(&map, skip_format, verbose, yamlfmt_path),
     }
-}
-
-pub fn _format(input: &str) -> String {
-    // Only run this if yamlfmt is in the path
-    // TODO: Call yamlfmt
-    String::from(input)
 }
 
 #[cfg(test)]
@@ -76,7 +78,7 @@ mod tests {
         key=value
         foo=bar
         ";
-        let output = convert(input, Format::Properties, Format::Yaml);
+        let output = convert(input, Format::Properties, Format::Yaml, true, false, None);
         assert!(output.contains("key:"));
         assert!(output.contains("value"));
     }
@@ -87,7 +89,7 @@ mod tests {
         key=value
         foo=bar
         ";
-        let output = convert(input, Format::Yaml, Format::Properties);
+        let output = convert(input, Format::Yaml, Format::Properties, true, false, None);
         assert!(output.contains("key=value"));
         assert!(output.contains("foo=bar"));
     }

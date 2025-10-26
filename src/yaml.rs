@@ -1,4 +1,7 @@
 use indexmap::IndexMap;
+use std::fs;
+use std::path::PathBuf;
+use std::process::Command;
 
 fn insert_nested(root: &mut serde_yaml::Mapping, key: &str, value: &str) {
     let parts: Vec<&str> = key.split('.').collect();
@@ -38,7 +41,12 @@ fn insert_nested(root: &mut serde_yaml::Mapping, key: &str, value: &str) {
     }
 }
 
-pub fn write(map: &IndexMap<String, String>) -> String {
+pub fn write(
+    map: &IndexMap<String, String>,
+    skip_format: bool,
+    verbose: bool,
+    yamlfmt_path: Option<&PathBuf>,
+) -> String {
     let mut root = serde_yaml::Mapping::new();
 
     for (key, value) in map {
@@ -48,7 +56,16 @@ pub fn write(map: &IndexMap<String, String>) -> String {
     let yaml_value = serde_yaml::Value::Mapping(root);
 
     // TODO: FIXME: Proper error handling
-    serde_yaml::to_string(&yaml_value).unwrap()
+    let s = serde_yaml::to_string(&yaml_value).unwrap();
+
+    if skip_format {
+        if verbose {
+            println!("Skipping formatting ...",);
+        }
+        s
+    } else {
+        format(&s, verbose, yamlfmt_path)
+    }
 }
 
 // TODO: Return a result
@@ -106,6 +123,84 @@ pub fn parse(content: &str) -> IndexMap<String, String> {
     map
 }
 
+pub fn format(input: &str, verbose: bool, yamlfmt_path: Option<&PathBuf>) -> String {
+    println!("NA FUNCAO FORMAT BRRRR");
+
+    let yaml_bin: &str = match yamlfmt_path {
+        Some(path) => path.to_str().unwrap(),
+        None => "yamlfmt",
+    };
+
+    #[allow(clippy::unnecessary_unwrap)]
+    if yamlfmt_path.is_none() {
+        // In this case, yamlfmt should be in the PATH
+        // panic if it is not
+        if which::which("yamlfmt").is_err() {
+            panic!(
+                "yamlfmt is not installed or not in PATH. Please install yamlfmt from https://github.com/google/yamlfmt"
+            );
+        }
+
+        if verbose {
+            println!("yamlfmt in PATH ...");
+            println!("Formatting with yamlfmt ...",);
+        }
+    } else {
+        // Check if the path is valid
+        let path = yamlfmt_path.unwrap();
+
+        // The path should exist, be a file, and should be executable
+
+        if !path.exists() {
+            panic!("Provided yamlfmt path does not exist: {:?}", path);
+        }
+
+        if !path.is_file() {
+            panic!("Provided yamlfmt path is not a file: {:?}", path);
+        }
+
+        // Check if it is executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let metadata = std::fs::metadata(path).expect("Failed to read file metadata");
+            let permissions = metadata.permissions();
+            if permissions.mode() & 0o111 == 0 {
+                panic!("Provided yamlfmt path is not executable: {:?}", path);
+            }
+        }
+
+        if verbose {
+            println!("Using yamlfmt from {:?}", path);
+        }
+    }
+
+    let tmp_file = std::env::temp_dir().join(format!("props2yml_{}.yml", std::process::id()));
+
+    // Write input to temporary file
+    fs::write(&tmp_file, input).expect("Failed to write temporary file");
+
+    // Run yamlfmt on the file
+    let status = Command::new(yaml_bin)
+        .arg(&tmp_file)
+        .status()
+        .expect("Failed to execute yamlfmt");
+
+    // Clean up on error
+    if !status.success() {
+        let _ = fs::remove_file(&tmp_file);
+        panic!("yamlfmt failed to format the file");
+    }
+
+    // Read the formatted content
+    let formatted = fs::read_to_string(&tmp_file).expect("Failed to read formatted file");
+
+    // Delete the temporary file
+    fs::remove_file(&tmp_file).expect("Failed to delete temporary file");
+
+    formatted
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,7 +232,7 @@ database:
     fn test_write_simple() {
         let mut map = IndexMap::new();
         map.insert("key".to_string(), "value".to_string());
-        let output = write(&map);
+        let output = write(&map, true, false, None);
         assert!(output.contains("key:"));
         assert!(output.contains("value"));
         assert!(output.contains("key: value"),);
@@ -149,7 +244,7 @@ database:
         map.insert("database.host".to_string(), "localhost".to_string());
         map.insert("database.port".to_string(), "5432".to_string());
 
-        let output = write(&map);
+        let output = write(&map, true, false, None);
         assert!(
             output.contains("database:"),
             "Output missing 'database:' block:\n{}",
