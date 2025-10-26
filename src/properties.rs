@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 fn escape_key(s: &str) -> String {
     s.replace('\\', "\\\\")
@@ -14,13 +14,12 @@ fn escape_value(s: &str) -> String {
         .replace('\t', "\\t")
 }
 
-pub fn write(map: &HashMap<String, String>) -> String {
-    let mut lines: Vec<String> = map
+pub fn write(map: &IndexMap<String, String>) -> String {
+    let lines: Vec<String> = map
         .iter()
         .map(|(k, v)| format!("{}={}", escape_key(k), escape_value(v)))
         .collect();
 
-    lines.sort();
     lines.join("\n") + "\n"
 }
 
@@ -93,8 +92,8 @@ fn parse_property_line(line: &str) -> Option<(String, String)> {
     Some((key.trim().to_string(), value))
 }
 
-pub fn parse(content: &str) -> HashMap<String, String> {
-    let mut map = HashMap::new();
+pub fn parse(content: &str) -> IndexMap<String, String> {
+    let mut map = IndexMap::new();
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -129,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_write() {
-        let mut map = HashMap::new();
+        let mut map = IndexMap::new();
         map.insert("key".to_string(), "value".to_string());
         let output = write(&map);
         assert!(output.contains("key=value"));

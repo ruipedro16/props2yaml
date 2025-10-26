@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 fn insert_nested(root: &mut serde_yaml::Mapping, key: &str, value: &str) {
     let parts: Vec<&str> = key.split('.').collect();
@@ -38,7 +38,7 @@ fn insert_nested(root: &mut serde_yaml::Mapping, key: &str, value: &str) {
     }
 }
 
-pub(crate) fn write(map: &HashMap<String, String>) -> String {
+pub fn write(map: &IndexMap<String, String>) -> String {
     let mut root = serde_yaml::Mapping::new();
 
     for (key, value) in map {
@@ -51,7 +51,8 @@ pub(crate) fn write(map: &HashMap<String, String>) -> String {
     serde_yaml::to_string(&yaml_value).unwrap()
 }
 
-fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut HashMap<String, String>) {
+// TODO: Return a result
+fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut IndexMap<String, String>) {
     match value {
         serde_yaml::Value::Mapping(m) => {
             for (k, v) in m {
@@ -95,9 +96,10 @@ fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut HashMap<Str
     }
 }
 
-pub(crate) fn parse(content: &str) -> HashMap<String, String> {
+// TODO: Return a result
+pub fn parse(content: &str) -> IndexMap<String, String> {
     let value: serde_yaml::Value = serde_yaml::from_str(content).expect("failed to parse yaml");
-    let mut map = HashMap::new();
+    let mut map = IndexMap::new();
 
     flatten_yaml(&value, String::new(), &mut map);
 
@@ -133,7 +135,7 @@ database:
 
     #[test]
     fn test_write_simple() {
-        let mut map = HashMap::new();
+        let mut map = IndexMap::new();
         map.insert("key".to_string(), "value".to_string());
         let output = write(&map);
         assert!(output.contains("key:"));
@@ -143,7 +145,7 @@ database:
 
     #[test]
     fn test_write_nested() {
-        let mut map = HashMap::new();
+        let mut map = IndexMap::new();
         map.insert("database.host".to_string(), "localhost".to_string());
         map.insert("database.port".to_string(), "5432".to_string());
 
