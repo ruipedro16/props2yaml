@@ -124,8 +124,6 @@ pub fn parse(content: &str) -> IndexMap<String, String> {
 }
 
 pub fn format(input: &str, verbose: bool, yamlfmt_path: Option<&PathBuf>) -> String {
-    println!("NA FUNCAO FORMAT BRRRR");
-
     let yaml_bin: &str = match yamlfmt_path {
         Some(path) => path.to_str().unwrap(),
         None => "yamlfmt",
