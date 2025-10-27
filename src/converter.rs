@@ -39,14 +39,14 @@ pub fn convert(
     skip_format: bool,
     verbose: bool,
     yamlfmt_path: Option<&PathBuf>,
-) -> String {
+) -> Result<String, Prop2YamlError> {
     let map: IndexMap<String, String> = match from {
-        Format::Properties => properties::parse(input),
-        Format::Yaml => yaml::parse(input),
+        Format::Properties => properties::parse(input)?,
+        Format::Yaml => yaml::parse(input)?,
     };
 
     match to {
-        Format::Properties => properties::write(&map),
+        Format::Properties => Ok(properties::write(&map)),
         Format::Yaml => yaml::write(&map, skip_format, verbose, yamlfmt_path),
     }
 }
@@ -79,7 +79,7 @@ mod tests {
         key=value
         foo=bar
         ";
-        let output = convert(input, Format::Properties, Format::Yaml, true, false, None);
+        let output = convert(input, Format::Properties, Format::Yaml, true, false, None).unwrap();
         assert!(output.contains("key:"));
         assert!(output.contains("value"));
     }
@@ -90,7 +90,7 @@ mod tests {
         key=value
         foo=bar
         ";
-        let output = convert(input, Format::Yaml, Format::Properties, true, false, None);
+        let output = convert(input, Format::Yaml, Format::Properties, true, false, None).unwrap();
         assert!(output.contains("key=value"));
         assert!(output.contains("foo=bar"));
     }

@@ -43,7 +43,7 @@ struct Cli {
     yamlfmt_path: Option<PathBuf>,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     if cli.verbose {
@@ -52,23 +52,17 @@ fn main() {
 
     let input_content = if cli.input == "-" {
         let mut buffer = String::new();
-        io::stdin()
-            .read_to_string(&mut buffer)
-            .expect("Failed to read from stdin");
+        io::stdin().read_to_string(&mut buffer)?;
         buffer
     } else {
-        fs::read_to_string(&cli.input).expect("Failed to read from file")
+        fs::read_to_string(&cli.input)?
     };
 
     // Determine source format if not specified
     let from_format = match (&cli.format, cli.input.as_str()) {
-        // TODO: Show the msg from the error
-        (Some(from_str), _) => Format::from_str(from_str).expect("Failed to parse --from format"),
+        (Some(from_str), _) => Format::from_str(from_str)?,
 
-        // TODO: Show the msg from the error
-        (None, path) if path != "-" => {
-            Format::from_path(path).expect("Failed to parse input file format")
-        }
+        (None, path) if path != "-" => Format::from_path(path)?,
 
         _ => {
             eprintln!("Error: Must specify --from when reading from stdin");
@@ -119,7 +113,7 @@ fn main() {
         cli.skip_format,
         cli.verbose,
         cli.yamlfmt_path.as_ref(),
-    );
+    )?;
 
     if cli.verbose {
         println!(
@@ -132,11 +126,13 @@ fn main() {
     }
 
     if let Some(output_path) = cli.output {
-        fs::write(output_path, output_content).unwrap();
+        fs::write(output_path, output_content)?;
         if cli.verbose {
             println!("Conversion completed successfully!");
         }
     } else {
         print!("{}", output_content);
     }
+
+    Ok(())
 }

@@ -1,3 +1,5 @@
+use crate::errors::Prop2YamlError;
+use crate::errors::Prop2YamlError::InvalidPropertyLine;
 use indexmap::IndexMap;
 
 fn escape_key(s: &str) -> String {
@@ -92,10 +94,10 @@ fn parse_property_line(line: &str) -> Option<(String, String)> {
     Some((key.trim().to_string(), value))
 }
 
-pub fn parse(content: &str) -> IndexMap<String, String> {
+pub fn parse(content: &str) -> Result<IndexMap<String, String>, Prop2YamlError> {
     let mut map = IndexMap::new();
 
-    for line in content.lines() {
+    for (line_num, line) in content.lines().enumerate() {
         let trimmed = line.trim();
 
         // Skip empty lines and comments
@@ -104,22 +106,13 @@ pub fn parse(content: &str) -> IndexMap<String, String> {
         }
 
         // Find the separator (=, :, or whitespace)
-        // TODO: use InvalidPropertyLine
-        let (key, value) = parse_property_line(trimmed).unwrap();
-
-        /*
-           .ok_or_else(|| {
-               Prop2YamlError::InvalidPropertyLine(
-                   format!("Line {}: '{}'", line_num + 1, line)
-               )
-           });
-
-        */
+        let (key, value) = parse_property_line(trimmed)
+            .ok_or_else(|| InvalidPropertyLine(format!("Line {}: '{}'", line_num + 1, line)))?;
 
         map.insert(key, value);
     }
 
-    map
+    Ok(map)
 }
 
 #[cfg(test)]
@@ -137,7 +130,7 @@ mod tests {
     #[test]
     fn test_parse_simple() {
         let input = "key=value\nfoo=bar";
-        let result = parse(input);
+        let result = parse(input).unwrap();
         assert_eq!(result.get("key"), Some(&"value".to_string()));
         assert_eq!(result.get("foo"), Some(&"bar".to_string()));
     }
@@ -145,14 +138,14 @@ mod tests {
     #[test]
     fn test_parse_with_comments() {
         let input = "# Comment\nkey=value\n! Another comment\nfoo=bar";
-        let result = parse(input);
+        let result = parse(input).unwrap();
         assert_eq!(result.len(), 2);
     }
 
     #[test]
     fn test_parse_with_colons() {
         let input = "key:value";
-        let result = parse(input);
+        let result = parse(input).unwrap();
         assert_eq!(result.get("key"), Some(&"value".to_string()));
     }
 }
