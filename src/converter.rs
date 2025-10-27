@@ -1,5 +1,6 @@
 use crate::errors::Prop2YamlError;
 use crate::{properties, yaml};
+use indexmap::IndexMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -39,7 +40,7 @@ pub fn convert(
     verbose: bool,
     yamlfmt_path: Option<&PathBuf>,
 ) -> String {
-    let map = match from {
+    let map: IndexMap<String, String> = match from {
         Format::Properties => properties::parse(input),
         Format::Yaml => yaml::parse(input),
     };
