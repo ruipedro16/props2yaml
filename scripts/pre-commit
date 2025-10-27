@@ -2,7 +2,11 @@
 
 set -e
 
-echo "Running pre-commit hook ..."
+# Ensure we're running from the repo root
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+echo "Running pre-commit hook in $(pwd) ..."
 
 # Only check staged Rust files
 STAGED_RS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.rs$' || true)
@@ -20,7 +24,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Re-add formatted files
-git add "$STAGED_RS_FILES"
+echo "$STAGED_RS_FILES" | xargs git add
 
 echo "Running tests ..."
 cargo test
