@@ -1,0 +1,31 @@
+#!/bin/env bash
+
+set -e
+
+echo "Running pre-commit hook ..."
+
+# Only check staged Rust files
+STAGED_RS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.rs$' || true)
+
+if [ -z "$STAGED_RS_FILES" ]; then
+    echo "No Rust files staged, skipping checks"
+    exit 0
+fi
+
+echo "Formatting code ..."
+cargo fmt --all
+if [ $? -ne 0 ]; then
+    echo "cargo fmt failed"
+    exit 1
+fi
+
+# Re-add formatted files
+git add "$STAGED_RS_FILES"
+
+echo "Running tests ..."
+cargo test
+
+echo "Running Clippy ..."
+cargo clippy --all-targets --all-features -- -D warnings
+
+echo "✅ Finished running pre-commit hook"
