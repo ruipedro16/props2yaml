@@ -5,7 +5,22 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn insert_nested(root: &mut serde_yaml::Mapping, key: &str, value: &str) {
-    let parts: Vec<&str> = key.split('.').collect();
+    let mut parts: Vec<String> = Vec::new();
+    let mut current_part = String::new();
+    let mut chars = key.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\\' && chars.peek() == Some(&'.') {
+            current_part.push('.');
+            chars.next(); // Consume the '.'
+        } else if c == '.' {
+            parts.push(current_part);
+            current_part = String::new();
+        } else {
+            current_part.push(c);
+        }
+    }
+    parts.push(current_part);
 
     if parts.len() == 1 {
         root.insert(
@@ -68,8 +83,11 @@ pub fn write(
     }
 }
 
-// TODO: Return a result
-fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut IndexMap<String, String>) {
+fn flatten_yaml(
+    value: &serde_yaml::Value,
+    prefix: String,
+    map: &mut IndexMap<String, String>,
+) -> Result<(), Prop2YamlError> {
     match value {
         serde_yaml::Value::Mapping(m) => {
             for (k, v) in m {
@@ -79,7 +97,7 @@ fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut IndexMap<St
                     } else {
                         format!("{}.{}", prefix, key_str)
                     };
-                    flatten_yaml(v, new_prefix, map);
+                    flatten_yaml(v, new_prefix, map)?;
                 }
             }
         }
@@ -87,7 +105,7 @@ fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut IndexMap<St
         serde_yaml::Value::Sequence(seq) => {
             for (i, item) in seq.iter().enumerate() {
                 let new_prefix = format!("{}[{}]", prefix, i);
-                flatten_yaml(item, new_prefix, map);
+                flatten_yaml(item, new_prefix, map)?;
             }
         }
 
@@ -108,16 +126,20 @@ fn flatten_yaml(value: &serde_yaml::Value, prefix: String, map: &mut IndexMap<St
         }
 
         _ => {
-            panic!("should not happen");
+            return Err(Prop2YamlError::UnsupportedYamlValueType(format!(
+                "Unsupported YAML value type encountered during flattening: {:?}",
+                value
+            )));
         }
     }
+    Ok(())
 }
 
 pub fn parse(content: &str) -> Result<IndexMap<String, String>, Prop2YamlError> {
     let value: serde_yaml::Value = serde_yaml::from_str(content)?;
     let mut map = IndexMap::new();
 
-    flatten_yaml(&value, String::new(), &mut map);
+    flatten_yaml(&value, String::new(), &mut map)?;
 
     Ok(map)
 }
@@ -137,9 +159,9 @@ pub fn format(
         // In this case, yamlfmt should be in the PATH
         // panic if it is not
         if which::which("yamlfmt").is_err() {
-            panic!(
-                "yamlfmt is not installed or not in PATH. Please install yamlfmt from https://github.com/google/yamlfmt"
-            );
+            return Err(Prop2YamlError::YamlfmtNotFound(
+                "yamlfmt is not installed or not in PATH. Please install yamlfmt from https://github.com/google/yamlfmt".to_string()
+            ));
         }
 
         if verbose {
@@ -267,6 +289,51 @@ database:
         assert!(
             output.contains("port: 5432"),
             "Output missing nested port:\n{}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_write_nested_escaped_dot() {
+        let mut map = IndexMap::new();
+        map.insert("my\\.file.name".to_string(), "value".to_string());
+        map.insert(
+            "another.key\\.with.dot".to_string(),
+            "another_value".to_string(),
+        );
+
+        let output = write(&map, true, false, None).unwrap();
+
+        // Expecting:
+        // my.file:
+        //   name: value
+        // another:
+        //   key.with:
+        //     dot: another_value
+
+        assert!(
+            output.contains("my.file:"),
+            "Output missing 'my.file:' block:\n{}",
+            output
+        );
+        assert!(
+            output.contains("name: value"),
+            "Output missing 'name: value':\n{}",
+            output
+        );
+        assert!(
+            output.contains("another:"),
+            "Output missing 'another:' block:\n{}",
+            output
+        );
+        assert!(
+            output.contains("key.with:"),
+            "Output missing 'key.with:' block:\n{}",
+            output
+        );
+        assert!(
+            output.contains("dot: another_value"),
+            "Output missing 'dot: another_value':\n{}",
             output
         );
     }

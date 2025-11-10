@@ -20,4 +20,7 @@ pub enum Prop2YamlError {
 
     #[error("yamlfmt error: {0}")]
     YamlfmtNotFound(String),
+
+    #[error("Unsupported YAML value type: {0}")]
+    UnsupportedYamlValueType(String),
 }
